@@ -1,3 +1,19 @@
+#######
+# dns #
+#######
+module joechem_io_dns {
+  source = "./dns"
+
+  domain  = "joechem.io"
+  records = var.joechem_io_domain_info
+}
+module joechem_org_dns {
+  source = "./dns"
+
+  domain  = "joechem.org"
+  records = var.joechem_org_domain_info
+}
+
 #########
 # email #
 #########
