@@ -49,6 +49,13 @@ variable "subnets" {
   ]
 }
 
+variable tags {
+  type = map
+  default = {
+    "Name" = "joechem"
+  }
+}
+
 # retrieve public subnet used for NAT
 locals {
   public_subnet_1_cidr  = var.subnets[0]["cidr"]
