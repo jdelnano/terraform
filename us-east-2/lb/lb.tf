@@ -61,10 +61,10 @@ resource aws_lb lb {
 
   enable_deletion_protection = true
 
-  access_logs {
-    bucket  = aws_s3_bucket.b.bucket
-    enabled = true
-  }
+  #access_logs {
+  #  bucket  = aws_s3_bucket.b.bucket
+  #  enabled = true
+  #}
 }
 
 resource aws_lb_target_group http {
@@ -73,14 +73,15 @@ resource aws_lb_target_group http {
   protocol = "HTTP"
   vpc_id   = var.vpc_id
 
+  // TODO:  correct values once ASG and LT are sorted
   health_check {
-    interval            = 15
+    interval            = 300
     path                = "/ping"
     protocol            = "HTTP"
     matcher             = 200
     timeout             = 3
     healthy_threshold   = 2
-    unhealthy_threshold = 2
+    unhealthy_threshold = 10
   }
 
   stickiness {
@@ -91,15 +92,7 @@ resource aws_lb_target_group http {
 
 resource aws_acm_certificate io {
   domain_name               = var.domain
-  subject_alternative_names = ["www.${var.domain}"]
-  validation_method         = "DNS"
-  tags                      = var.tags
-}
-
-# staging
-resource aws_acm_certificate staging_io {
-  domain_name               = "staging.${var.domain}"
-  subject_alternative_names = ["www.staging.${var.domain}"]
+  subject_alternative_names = ["*.${var.domain}"]
   validation_method         = "DNS"
   tags                      = var.tags
 }
@@ -107,15 +100,7 @@ resource aws_acm_certificate staging_io {
 # org
 resource aws_acm_certificate org {
   domain_name               = "joechem.org"
-  subject_alternative_names = ["www.joechem.org"]
-  validation_method         = "DNS"
-  tags                      = var.tags
-}
-
-# staging org
-resource aws_acm_certificate staging_org {
-  domain_name               = "staging.joechem.org"
-  subject_alternative_names = ["www.staging.joechem.org"]
+  subject_alternative_names = ["*.joechem.org"]
   validation_method         = "DNS"
   tags                      = var.tags
 }
@@ -124,18 +109,6 @@ resource aws_acm_certificate staging_org {
 resource aws_lb_listener_certificate org {
   listener_arn    = aws_lb_listener.https.arn
   certificate_arn = aws_acm_certificate.org.arn
-}
-
-# staging.joechem.io
-resource aws_lb_listener_certificate staging_io {
-  listener_arn    = aws_lb_listener.https.arn
-  certificate_arn = aws_acm_certificate.staging_io.arn
-}
-
-# staging.joechem.org
-resource aws_lb_listener_certificate staging_org {
-  listener_arn    = aws_lb_listener.https.arn
-  certificate_arn = aws_acm_certificate.staging_org.arn
 }
 
 resource aws_lb_listener https {
@@ -152,7 +125,7 @@ resource aws_lb_listener https {
 }
 
 resource aws_lb_listener http {
-  load_balancer_arn = aws_lb.alb.arn
+  load_balancer_arn = aws_lb.lb.arn
   port              = "80"
   protocol          = "HTTP"
 
@@ -188,51 +161,72 @@ resource aws_lb_listener_rule https_org {
   }
 }
 
+resource aws_lb_listener_rule staging_https_org {
+  listener_arn = aws_lb_listener.https.arn
+
+  action {
+    type = "redirect"
+
+    redirect {
+      host        = "staging.joechem.io"
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+
+  condition {
+    host_header {
+      values = ["staging.joechem.org", "www.staging.joechem.org"]
+    }
+  }
+}
+
 
 #########################
 # S3 Bucket For Logging #
 #########################
-resource aws_s3_bucket b {
-  bucket = var.bucket_name
-  acl    = "private"
-}
-
-data aws_iam_policy_document logging {
-  statement {
-    actions = [
-      "s3:PutObject"
-    ]
-    resources = [
-      "arn:aws:s3:::${aws_s3_bucket.b.id}/*"
-    ]
-    principals {
-      type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
-    }
-    condition {
-      test     = "StringEquals"
-      variable = "s3:x-amz-acl"
-
-      values = [
-        "bucket-owner-full-control"
-      ]
-    }
-  }
-  statement {
-    actions = [
-      "s3:GetBucketAcl"
-    ]
-    resources = [
-      "arn:aws:s3:::${aws_s3_bucket.b.id}"
-    ]
-    principals {
-      type        = "Service"
-      identifiers = ["delivery.logs.amazonaws.com"]
-    }
-  }
-}
-
-resource aws_s3_bucket_policy p {
-  bucket = aws_s3_bucket.b.id
-  policy = data.aws_iam_policy_document.logging.json
-}
+#resource aws_s3_bucket b {
+#  bucket = var.bucket_name
+#  acl    = "private"
+#}
+#
+#data aws_iam_policy_document logging {
+#  statement {
+#    actions = [
+#      "s3:PutObject"
+#    ]
+#    resources = [
+#      "arn:aws:s3:::${aws_s3_bucket.b.id}/*"
+#    ]
+#    principals {
+#      type        = "Service"
+#      identifiers = ["delivery.logs.amazonaws.com"]
+#    }
+#    condition {
+#      test     = "StringEquals"
+#      variable = "s3:x-amz-acl"
+#
+#      values = [
+#        "bucket-owner-full-control"
+#      ]
+#    }
+#  }
+#  statement {
+#    actions = [
+#      "s3:GetBucketAcl"
+#    ]
+#    resources = [
+#      "arn:aws:s3:::${aws_s3_bucket.b.id}"
+#    ]
+#    principals {
+#      type        = "Service"
+#      identifiers = ["delivery.logs.amazonaws.com"]
+#    }
+#  }
+#}
+#
+#resource aws_s3_bucket_policy p {
+#  bucket = aws_s3_bucket.b.id
+#  policy = data.aws_iam_policy_document.logging.json
+#}
