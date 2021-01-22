@@ -24,12 +24,13 @@ resource aws_route_table_association public_2 {
 resource aws_route_table private {
   vpc_id = aws_vpc.vpc.id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.gw.id
-  }
+  # Uncomment if NAT gateway in use
+  #route {
+  #  cidr_block     = "0.0.0.0/0"
+  #  nat_gateway_id = aws_nat_gateway.gw.id
+  #}
 
-  depends_on = [aws_nat_gateway.gw]
+  #depends_on = [aws_nat_gateway.gw]
 }
 
 resource aws_route_table_association private_1 {

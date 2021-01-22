@@ -3,10 +3,14 @@ resource aws_launch_template lt {
   image_id               = var.ami
   instance_type          = var.instance_type
   key_name               = var.key_name
-  vpc_security_group_ids = [var.lb_sg_id]
+  update_default_version = true
 
   iam_instance_profile {
     name = aws_iam_instance_profile.prof.id
+  }
+
+  network_interfaces {
+    security_groups = [aws_security_group.ec2.id]
   }
 
   credit_specification {
@@ -56,12 +60,10 @@ resource aws_autoscaling_group asg {
     version = "$Latest"
   }
 
-  min_size            = var.asg_size
-  max_size            = var.asg_size
-  vpc_zone_identifier = var.subnet_ids
-  health_check_type   = "ELB"
-
-  target_group_arns = [var.http_target_group_arn]
+  min_size           = var.asg_size
+  max_size           = var.asg_size
+  availability_zones = ["us-east-2a"]
+  health_check_type  = "EC2"
 
   tags = [
     {
@@ -75,4 +77,14 @@ resource aws_autoscaling_group asg {
       propagate_at_launch = true
     },
   ]
+}
+
+resource aws_network_interface eni {
+  subnet_id       = var.subnet_id
+  security_groups = [aws_security_group.ec2.id]
+}
+
+resource aws_eip ip {
+  vpc               = true
+  network_interface = aws_network_interface.eni.id
 }
